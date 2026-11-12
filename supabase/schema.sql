@@ -207,7 +207,10 @@ create policy comments_insert on public.comments
     published
     and char_length(body) between 2 and 1200
     and char_length(author) <= 40
-    and (parent_id is null or exists (select 1 from public.comments c where c.id = parent_id and c.published))
+    and (parent_id is null or exists (
+      select 1 from public.comments parent
+      where parent.id = comments.parent_id and parent.published
+    ))
     and (user_id is null or user_id = auth.uid())
     and (badge_type is null or badge_type in ('osaka', 'anonymous', 'random'))
   );

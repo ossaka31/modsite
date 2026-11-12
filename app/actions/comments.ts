@@ -89,10 +89,20 @@ export async function postComment(_state: CommentState, formData: FormData): Pro
     parent_id: parentId,
     author,
     body,
+    published: true,
     user_id: userId,
     badge_type: badgeType,
   });
-  if (error) return fail(copy.errors.commentFailed);
+  if (error) {
+    console.error("Comment insert failed", { code: error.code, message: error.message });
+    if (error.code === "PGRST204" || error.code === "42703") {
+      return fail(copy.errors.commentSchemaOutdated);
+    }
+    if (error.code === "42501") {
+      return fail(copy.errors.commentInsertDenied);
+    }
+    return fail(copy.errors.commentFailed);
+  }
 
   updateTag("comments");
   return { ok: true };

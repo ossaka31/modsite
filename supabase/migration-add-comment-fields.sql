@@ -7,6 +7,9 @@ add column if not exists parent_id uuid references public.comments(id) on delete
 add column if not exists user_id uuid references auth.users(id) on delete set null,
 add column if not exists badge_type text check (badge_type in ('osaka', 'anonymous', 'random'));
 
+alter table public.comments alter column published set default true;
+alter table public.comments enable row level security;
+
 -- Add indexes for performance
 create index if not exists comments_parent_id_idx on public.comments(parent_id);
 create index if not exists comments_created_at_idx on public.comments(created_at desc);
@@ -16,10 +19,13 @@ drop policy if exists comments_insert on public.comments;
 create policy comments_insert on public.comments
   for insert to anon, authenticated
   with check (
-    published
+    published is true
     and char_length(body) between 2 and 1200
     and char_length(author) <= 40
-    and (parent_id is null or exists (select 1 from public.comments c where c.id = parent_id and c.published))
+    and (parent_id is null or exists (
+      select 1 from public.comments parent
+      where parent.id = comments.parent_id and parent.published
+    ))
     and (user_id is null or user_id = auth.uid())
     and (badge_type is null or badge_type in ('osaka', 'anonymous', 'random'))
   );

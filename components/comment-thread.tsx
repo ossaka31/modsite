@@ -111,7 +111,6 @@ interface CommentThreadProps {
   comments: CommentItem[];
   labels: ReturnType<typeof useI18n>["t"]["home"];
   locale: "tr" | "en";
-  depth?: number;
   isReplyingTo: string | null;
   onReplyClick?: (commentId: string | null) => void;
   manageable?: boolean;
@@ -169,7 +168,6 @@ export function CommentThread({
   comments,
   labels,
   locale,
-  depth = 0,
   isReplyingTo,
   onReplyClick,
   manageable = false,
@@ -184,7 +182,6 @@ export function CommentThread({
           comment={comment}
           labels={labels}
           locale={locale}
-          depth={depth}
           isReplyingTo={isReplyingTo}
           onReplyClick={onReplyClick}
           manageable={manageable}
@@ -198,13 +195,12 @@ interface CommentItemProps {
   comment: CommentItem;
   labels: ReturnType<typeof useI18n>["t"]["home"];
   locale: "tr" | "en";
-  depth: number;
   isReplyingTo: string | null;
   onReplyClick?: (commentId: string | null) => void;
   manageable?: boolean;
 }
 
-function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClick, manageable = false }: CommentItemProps) {
+function CommentItem({ comment, labels, locale, isReplyingTo, onReplyClick, manageable = false }: CommentItemProps) {
   const [showReplies, setShowReplies] = useState(true);
   const isReplying = isReplyingTo === comment.id;
   const [editing, setEditing] = useState(false);
@@ -247,15 +243,8 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
     await deleteComment(comment.id);
   };
 
-  const indentSize = depth * 28;
-
   return (
-    <li className="comment-item" style={{ "--indent": `${indentSize}px` } as React.CSSProperties} data-depth={depth}>
-      <div className="comment-connector" aria-hidden="true">
-        <span className="connector-line" />
-        {hasReplies && <span className="connector-branch" />}
-      </div>
-
+    <li className="comment-item">
       <article className={`comment-card ${editing ? "is-editing" : ""}`} id={`comment-${comment.id}`}>
         <header className="comment-header">
           <div className="comment-author-row">
@@ -345,7 +334,9 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
               aria-controls={`replies-${comment.id}`}
               disabled={editing}
             >
-              <span>{showReplies ? labels.comments : labels.comments} ({comment.replies.length})</span>
+              <span>
+                {showReplies ? labels.hideReplies : labels.showReplies} ({comment.replies.length})
+              </span>
             </button>
           )}
         </footer>
@@ -354,6 +345,7 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
           <ReplyForm
             id={`reply-form-${comment.id}`}
             parentId={comment.id}
+            authorName={authorName}
             labels={labels}
             locale={locale}
             onCancel={handleCancelReply}
@@ -366,7 +358,6 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
               comments={comment.replies}
               labels={labels}
               locale={locale}
-              depth={depth + 1}
               isReplyingTo={isReplyingTo}
               onReplyClick={onReplyClick}
               manageable={manageable}
@@ -381,12 +372,13 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
 interface ReplyFormProps {
   id: string;
   parentId: string;
+  authorName: string;
   labels: ReturnType<typeof useI18n>["t"]["home"];
   locale: "tr" | "en";
   onCancel: () => void;
 }
 
-function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
+function ReplyForm({ id, parentId, authorName, labels, locale, onCancel }: ReplyFormProps) {
   const initial: CommentState = {};
   const [state, action, pending] = useActionState(postComment, initial);
   const { t } = useI18n();
@@ -419,7 +411,7 @@ function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
       <div className="reply-form-header">
         <div className="replying-to">
           <ReplyIcon className="replying-icon" />
-          <span>{labels.replyingTo} <strong>{labels.commentAnon}</strong></span>
+          <span>{labels.replyingTo} <strong>{authorName}</strong></span>
         </div>
         <button type="button" className="btn btn-ghost btn-sm cancel-reply" onClick={onCancel}>
           <span className="sr-only">{labels.cancelReply}</span>

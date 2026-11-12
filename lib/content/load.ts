@@ -44,7 +44,10 @@ async function restGet(path: string) {
     },
     cache: "no-store",
   });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    console.error("Supabase REST read failed", { path, status: response.status });
+    return null;
+  }
   return response.json() as Promise<unknown>;
 }
 
@@ -81,6 +84,7 @@ function buildCommentTree(rows: CommentItem[]): CommentItem[] {
   };
 
   sortTree(roots);
+  roots.reverse();
   return roots;
 }
 
@@ -142,7 +146,7 @@ export async function getComments(): Promise<CommentItem[]> {
 
   try {
     const rows = await restGet(
-      `comments?select=id,parent_id,author,body,created_at,badge_type,user_id&published=is.true&order=created_at.asc&limit=${COMMENTS_SHOWN}`,
+      `comments?select=id,parent_id,author,body,created_at,badge_type,user_id&published=is.true&order=created_at.desc&limit=${COMMENTS_SHOWN}`,
     );
     if (!Array.isArray(rows)) return [];
 
@@ -172,7 +176,8 @@ export async function getComments(): Promise<CommentItem[]> {
     });
 
     return buildCommentTree(flatComments);
-  } catch {
+  } catch (error) {
+    console.error("Comments could not be loaded", error);
     return [];
   }
 }
