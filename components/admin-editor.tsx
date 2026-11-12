@@ -51,7 +51,7 @@ export function AdminEditor({
   comments: CommentRow[];
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const a = t.admin;
   const [site, setSite] = useState(initialSite);
   const [tab, setTab] = useState<TabId>("identity");
@@ -392,8 +392,8 @@ export function AdminEditor({
             ) : (
               <CommentThread
                 comments={comments}
-                labels={a as unknown as ReturnType<typeof useI18n>["t"]["home"]}
-                locale="tr"
+                labels={t.home}
+                locale={locale}
                 isReplyingTo={null}
                 manageable={true}
               />

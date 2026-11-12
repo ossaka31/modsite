@@ -1,4 +1,4 @@
-const CACHE = "osaka-v2";
+const CACHE = "osaka-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -21,6 +21,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.searchParams.has("_rsc") || request.headers.get("RSC") === "1") return;
   if (url.pathname.startsWith("/admin") || url.pathname.startsWith("/hesap") || url.pathname.startsWith("/auth")) {
     return;
   }
@@ -34,6 +35,9 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request) || new Response(null, { status: 404, statusText: "Not Found" })),
+      .catch(async () => {
+        const cached = await caches.match(request);
+        return cached ?? new Response(null, { status: 503, statusText: "Service Unavailable" });
+      }),
   );
 });
