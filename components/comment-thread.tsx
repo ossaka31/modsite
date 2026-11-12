@@ -205,6 +205,8 @@ function CommentItem({ comment, labels, locale, isReplyingTo, onReplyClick, mana
   const isReplying = isReplyingTo === comment.id;
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(comment.body);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const authorName = comment.author || labels.commentAnon;
   const hasReplies = comment.replies.length > 0;
@@ -240,7 +242,14 @@ function CommentItem({ comment, labels, locale, isReplyingTo, onReplyClick, mana
 
   const handleDelete = async () => {
     if (!window.confirm(locale === "tr" ? "Bu yorumu silmek istediğinizden emin misiniz?" : "Delete this comment?")) return;
-    await deleteComment(comment.id);
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const result = await deleteComment(comment.id);
+      if (!result.ok) setDeleteError(result.error);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -275,7 +284,7 @@ function CommentItem({ comment, labels, locale, isReplyingTo, onReplyClick, mana
                     type="button"
                     className="btn btn-ghost btn-sm admin-delete-btn"
                     onClick={handleDelete}
-                    disabled={editing || isReplying}
+                    disabled={editing || isReplying || deleting}
                     aria-label={locale === "tr" ? "Sil" : "Delete"}
                   >
                     <TrashIcon />
@@ -311,6 +320,8 @@ function CommentItem({ comment, labels, locale, isReplyingTo, onReplyClick, mana
         ) : (
           <div className="comment-body">{comment.body}</div>
         )}
+
+        {deleteError && <div className="form-message error" role="alert">{deleteError}</div>}
 
         <footer className="comment-footer">
           <button

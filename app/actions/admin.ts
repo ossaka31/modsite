@@ -292,7 +292,10 @@ export async function deleteComment(id: string): Promise<{ ok: true } | { ok: fa
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: await err("commentDeleteFailed") };
 
   const { error } = await editor.supabase.from("comments").delete().eq("id", id);
-  if (error) return { ok: false, error: await err("commentDeleteFailed") };
+  if (error) {
+    console.error("Comment delete failed", { code: error.code, message: error.message });
+    return { ok: false, error: await err("commentDeleteFailed") };
+  }
 
   await audit(editor.supabase, editor.userId, "comment.delete", "Yorum silindi");
   updateTag("comments");

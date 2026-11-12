@@ -34,6 +34,7 @@ create policy comments_insert on public.comments
 grant select, insert on public.comments to anon, authenticated;
 grant delete on public.comments to authenticated;
 grant update on public.comments to authenticated;
+grant execute on function public.is_admin() to authenticated;
 
 -- Drop and recreate delete/update policies for admins
 drop policy if exists comments_delete on public.comments;
