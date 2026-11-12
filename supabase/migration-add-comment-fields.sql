@@ -1,0 +1,29 @@
+-- Run this in Supabase SQL Editor to add threaded comment fields
+-- This adds: parent_id, user_id, badge_type columns and updates RLS policies
+
+-- Add new columns
+alter table public.comments
+add column if not exists parent_id uuid references public.comments(id) on delete cascade,
+add column if not exists user_id uuid references auth.users(id) on delete set null,
+add column if not exists badge_type text check (badge_type in ('osaka', 'anonymous', 'random'));
+
+-- Add indexes for performance
+create index if not exists comments_parent_id_idx on public.comments(parent_id);
+create index if not exists comments_created_at_idx on public.comments(created_at desc);
+
+-- Drop and recreate insert policy with new fields
+drop policy if exists comments_insert on public.comments;
+create policy comments_insert on public.comments
+  for insert to anon, authenticated
+  with check (
+    published
+    and char_length(body) between 2 and 1200
+    and char_length(author) <= 40
+    and (parent_id is null or exists (select 1 from public.comments c where c.id = parent_id and c.published))
+    and (user_id is null or user_id = auth.uid())
+    and (badge_type is null or badge_type in ('osaka', 'anonymous', 'random'))
+  );
+
+-- Grant permissions (should already exist but safe to re-run)
+grant select, insert on public.comments to anon, authenticated;
+grant delete on public.comments to authenticated;

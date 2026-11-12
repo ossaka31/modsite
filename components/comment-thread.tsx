@@ -1,0 +1,451 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useActionState } from "react";
+import { postComment, type CommentState, type CommentBadgeType } from "@/app/actions/comments";
+import { checkAdmin } from "@/app/actions/auth";
+import { contentLimits } from "@/lib/content/limits";
+import { useI18n } from "@/components/i18n-provider";
+import { Honeypot, TurnstileField } from "@/components/form-guards";
+import type { CommentItem } from "@/lib/content/types";
+
+function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function WarningIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function BadgeIconOsaka(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M8.5 14.5A2.5 2.5 0 0 1 11 12c0-1.38-.5-2.5-1-3.5a2.5 2.5 0 0 1 5 0c.5 1 .5 2.1 0 3.5a2.5 2.5 0 0 1-5 0c-.5 0-1-.5-1.5-1.5" />
+      <path d="M12 17.5a2.5 2.5 0 0 1 0-5A4.5 4.5 0 0 0 7.5 15" />
+    </svg>
+  );
+}
+
+function BadgeIconAnon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
+
+function BadgeIconRandom(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M21 12V7H5" />
+      <path d="M21 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2" />
+      <path d="M16 19h6" />
+      <path d="M19 16v6" />
+    </svg>
+  );
+}
+
+function BadgeIconCustom(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="M15 5 5 15" />
+    </svg>
+  );
+}
+
+interface CommentThreadProps {
+  comments: CommentItem[];
+  labels: ReturnType<typeof useI18n>["t"]["home"];
+  locale: "tr" | "en";
+  depth?: number;
+  isReplyingTo: string | null;
+  onReplyClick?: (commentId: string | null) => void;
+}
+
+const BADGE_LABELS: Record<Exclude<CommentBadgeType, null>, { tr: string; en: string }> = {
+  osaka: { tr: "OSAKA", en: "OSAKA" },
+  anonymous: { tr: "Anonim", en: "Anonymous" },
+  random: { tr: "Rastgele", en: "Random" },
+};
+
+function getBadgeLabel(badge: CommentBadgeType, locale: "tr" | "en") {
+  if (!badge) return locale === "tr" ? "Anonim" : "Anonymous";
+  return BADGE_LABELS[badge]?.[locale] ?? (locale === "tr" ? "Anonim" : "Anonymous");
+}
+
+function getBadgeClass(badge: CommentBadgeType) {
+  switch (badge) {
+    case "osaka":
+      return "badge-osaka";
+    case "anonymous":
+      return "badge-anon";
+    case "random":
+      return "badge-random";
+    default:
+      return "";
+  }
+}
+
+function formatDate(iso: string, locale: "tr" | "en") {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
+}
+
+function getRelativeTime(iso: string, locale: "tr" | "en") {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const diff = Date.now() - parsed.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return locale === "tr" ? "az önce" : "just now";
+  if (minutes < 60) return `${minutes} ${locale === "tr" ? "dk önce" : "m ago"}`;
+  if (hours < 24) return `${hours} ${locale === "tr" ? "sa önce" : "h ago"}`;
+  if (days < 7) return `${days} ${locale === "tr" ? "gün önce" : "d ago"}`;
+  return formatDate(iso, locale);
+}
+
+export function CommentThread({
+  comments,
+  labels,
+  locale,
+  depth = 0,
+  isReplyingTo,
+  onReplyClick,
+}: CommentThreadProps) {
+  if (comments.length === 0) return null;
+
+  return (
+    <ul className="comment-thread" role="list" aria-label={labels.comments}>
+      {comments.map((comment) => (
+        <CommentItem
+          key={comment.id}
+          comment={comment}
+          labels={labels}
+          locale={locale}
+          depth={depth}
+          isReplyingTo={isReplyingTo}
+          onReplyClick={onReplyClick}
+        />
+      ))}
+    </ul>
+  );
+}
+
+interface CommentItemProps {
+  comment: CommentItem;
+  labels: ReturnType<typeof useI18n>["t"]["home"];
+  locale: "tr" | "en";
+  depth: number;
+  isReplyingTo: string | null;
+  onReplyClick?: (commentId: string | null) => void;
+}
+
+function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClick }: CommentItemProps) {
+  const [showReplies, setShowReplies] = useState(true);
+  const isReplying = isReplyingTo === comment.id;
+
+  const authorName = comment.author || labels.commentAnon;
+  const hasReplies = comment.replies.length > 0;
+
+  const handleReplyClick = () => {
+    onReplyClick?.(comment.id);
+  };
+
+  const handleCancelReply = () => {
+    onReplyClick?.(null);
+  };
+
+  const indentSize = depth * 24;
+
+  return (
+    <li className="comment-item" style={{ "--indent": `${indentSize}px` } as React.CSSProperties} data-depth={depth}>
+      <div className="comment-connector" aria-hidden="true">
+        <span className="connector-line" />
+        {hasReplies && <span className="connector-branch" />}
+      </div>
+
+      <article className="comment-card" id={`comment-${comment.id}`}>
+        <header className="comment-header">
+          <div className="comment-author-row">
+            <div className="comment-avatar" aria-hidden="true">
+              {authorName.charAt(0).toUpperCase()}
+            </div>
+            <div className="comment-meta">
+              <strong className="comment-author">{authorName}</strong>
+              {comment.badgeType && (
+                <span className={`comment-badge ${getBadgeClass(comment.badgeType)}`}>
+                  {getBadgeLabel(comment.badgeType, locale)}
+                </span>
+              )}
+            </div>
+          </div>
+          <time className="comment-time" dateTime={comment.createdAt} title={formatDate(comment.createdAt, locale)}>
+            {getRelativeTime(comment.createdAt, locale)}
+          </time>
+        </header>
+
+        <div className="comment-body">{comment.body}</div>
+
+        <footer className="comment-footer">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm reply-btn"
+            onClick={handleReplyClick}
+            aria-expanded={isReplying}
+            aria-controls={`reply-form-${comment.id}`}
+          >
+            <svg className="reply-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M3 10h10a5 5 0 0 1 5 5v2" />
+              <path d="M3 10l5 5" />
+              <path d="M3 10l5-5" />
+            </svg>
+            <span>{labels.reply}</span>
+          </button>
+
+          {hasReplies && (
+            <button
+              type="button"
+              className={`btn btn-ghost btn-sm toggle-replies ${!showReplies ? "collapsed" : ""}`}
+              onClick={() => setShowReplies((prev) => !prev)}
+              aria-expanded={showReplies}
+              aria-controls={`replies-${comment.id}`}
+            >
+              <svg className="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span>{showReplies ? labels.comments : labels.comments} ({comment.replies.length})</span>
+            </button>
+          )}
+        </footer>
+
+        {isReplying && (
+          <ReplyForm
+            id={`reply-form-${comment.id}`}
+            parentId={comment.id}
+            labels={labels}
+            locale={locale}
+            onCancel={handleCancelReply}
+          />
+        )}
+
+        {hasReplies && showReplies && (
+          <div id={`replies-${comment.id}`} className="comment-replies" role="group" aria-label={labels.comments}>
+            <CommentThread
+              comments={comment.replies}
+              labels={labels}
+              locale={locale}
+              depth={depth + 1}
+              isReplyingTo={isReplyingTo}
+              onReplyClick={onReplyClick}
+            />
+          </div>
+        )}
+      </article>
+    </li>
+  );
+}
+
+interface ReplyFormProps {
+  id: string;
+  parentId: string;
+  labels: ReturnType<typeof useI18n>["t"]["home"];
+  locale: "tr" | "en";
+  onCancel: () => void;
+}
+
+function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
+  const initial: CommentState = {};
+  const [state, action, pending] = useActionState(postComment, initial);
+  const { t } = useI18n();
+  const c = t.home;
+  const [charCount, setCharCount] = useState(0);
+  const [badgeType, setBadgeType] = useState<"osaka" | "anonymous" | "random" | "">("");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdmin().then((result) => {
+      setIsAdmin(result.isAdmin);
+    });
+  }, []);
+
+  const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCharCount(e.target.value.length);
+  };
+
+  const maxChars = contentLimits.commentBody;
+  const isCustomName = badgeType === "";
+
+  return (
+    <form id={id} className="reply-form" action={action}>
+      <input type="hidden" name="parent_id" value={parentId} />
+      <input type="hidden" name="badge_type" value={badgeType} />
+      <Honeypot />
+      <TurnstileField />
+
+      <div className="reply-form-header">
+        <div className="replying-to">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M3 10h10a5 5 0 0 1 5 5v2" />
+            <path d="M3 10l5 5" />
+            <path d="M3 10l5-5" />
+          </svg>
+          <span>{labels.replyingTo} <strong>{labels.commentAnon}</strong></span>
+        </div>
+        <button type="button" className="btn btn-ghost btn-sm cancel-reply" onClick={onCancel}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          <span className="sr-only">{labels.cancelReply}</span>
+        </button>
+      </div>
+
+      {isAdmin && (
+        <fieldset className="badge-picker badge-picker-compact">
+          <legend>{c.selectBadge}</legend>
+          <div className="badge-picker-grid" role="radiogroup" aria-label={c.selectBadge}>
+            <label
+              className={`badge-picker-option ${badgeType === "osaka" ? "selected" : ""} badge-osaka`}
+              role="radio"
+              aria-checked={badgeType === "osaka"}
+              tabIndex={0}
+              onClick={() => setBadgeType("osaka")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType("osaka"); } }}
+            >
+              <BadgeIconOsaka className="badge-picker-icon" />
+              <span className="badge-picker-label">{c.badgeOsaka}</span>
+              {badgeType === "osaka" && <span className="badge-picker-check"><CheckIcon /></span>}
+            </label>
+            <label
+              className={`badge-picker-option ${badgeType === "anonymous" ? "selected" : ""} badge-anon`}
+              role="radio"
+              aria-checked={badgeType === "anonymous"}
+              tabIndex={0}
+              onClick={() => setBadgeType("anonymous")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType("anonymous"); } }}
+            >
+              <BadgeIconAnon className="badge-picker-icon" />
+              <span className="badge-picker-label">{c.badgeAnonymous}</span>
+              {badgeType === "anonymous" && <span className="badge-picker-check"><CheckIcon /></span>}
+            </label>
+            <label
+              className={`badge-picker-option ${badgeType === "random" ? "selected" : ""} badge-random`}
+              role="radio"
+              aria-checked={badgeType === "random"}
+              tabIndex={0}
+              onClick={() => setBadgeType("random")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType("random"); } }}
+            >
+              <BadgeIconRandom className="badge-picker-icon" />
+              <span className="badge-picker-label">{c.badgeRandom}</span>
+              {badgeType === "random" && <span className="badge-picker-check"><CheckIcon /></span>}
+            </label>
+            <label
+              className={`badge-picker-option ${badgeType === "" ? "selected" : ""} badge-custom`}
+              role="radio"
+              aria-checked={badgeType === ""}
+              tabIndex={0}
+              onClick={() => setBadgeType("")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType(""); } }}
+            >
+              <BadgeIconCustom className="badge-picker-icon" />
+              <span className="badge-picker-label">{c.commentName}</span>
+              {badgeType === "" && <span className="badge-picker-check"><CheckIcon /></span>}
+            </label>
+          </div>
+        </fieldset>
+      )}
+
+      {!isAdmin || isCustomName ? (
+        <div className="form-field">
+          <label htmlFor={`reply-author-${parentId}`} className="field-label">
+            {c.commentName}
+            <span className="field-optional">({c.commentNamePlaceholder})</span>
+          </label>
+          <input
+            id={`reply-author-${parentId}`}
+            name="author"
+            type="text"
+            maxLength={contentLimits.commentAuthor}
+            autoComplete="nickname"
+            placeholder={c.commentNamePlaceholder}
+            disabled={isAdmin && !isCustomName}
+            className="field-input"
+          />
+        </div>
+      ) : null}
+
+      <div className="reply-form-field">
+        <textarea
+          id={`reply-body-${parentId}`}
+          name="body"
+          rows={3}
+          required
+          minLength={2}
+          maxLength={maxChars}
+          placeholder={c.commentBodyPlaceholder}
+          onChange={handleBodyChange}
+          className={`field-textarea ${charCount > maxChars ? "error" : ""} ${charCount < 2 && charCount > 0 ? "error" : ""}`}
+          disabled={pending}
+        />
+        <div className="textarea-footer">
+          <span className="char-counter" data-current={charCount} data-max={maxChars}>
+            {charCount}/{maxChars}
+          </span>
+          <span className={`textarea-hint ${charCount >= 2 && charCount <= maxChars ? "success" : ""}`} aria-live="polite">
+            {charCount < 2 ? `${2 - charCount} ${locale === "tr" ? "karakter daha" : "more chars"}` : charCount >= 2 && charCount <= maxChars ? <CheckIcon /> : `${charCount - maxChars} ${locale === "tr" ? "karakter fazla" : "chars over"}`}
+          </span>
+        </div>
+      </div>
+
+      {state.error && (
+        <div className="form-message error" role="alert">
+          <WarningIcon className="message-icon" aria-hidden="true" />
+          {state.error}
+        </div>
+      )}
+
+      {state.ok && (
+        <div className="form-message success" role="status">
+          <CheckIcon className="message-icon" aria-hidden="true" />
+          {c.commentPosted}
+        </div>
+      )}
+
+      <div className="reply-form-actions">
+        <button
+          type="submit"
+          className={`btn btn-primary ${pending ? "loading" : ""}`}
+          disabled={pending || charCount < 2 || charCount > maxChars}
+        >
+          {pending ? (
+            <>
+              <span className="btn-spinner" aria-hidden="true"></span>
+              {c.commentSending}
+            </>
+          ) : (
+            c.commentSend
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
