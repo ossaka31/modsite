@@ -299,6 +299,26 @@ export async function deleteComment(id: string): Promise<{ ok: true } | { ok: fa
   return { ok: true };
 }
 
+export async function editComment(id: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const editor = await requireEditor();
+  if (editorError(editor)) return { ok: false, error: editor.error };
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: await err("commentDeleteFailed") };
+
+  const cleaned = cleanText(body);
+  if (cleaned.length < 2) return { ok: false, error: await err("commentShort") };
+  if (cleaned.length > contentLimits.commentBody) return { ok: false, error: await err("commentLong") };
+
+  const { error } = await editor.supabase
+    .from("comments")
+    .update({ body: cleaned })
+    .eq("id", id);
+  if (error) return { ok: false, error: await err("commentDeleteFailed") };
+
+  await audit(editor.supabase, editor.userId, "comment.edit", "Yorum düzenlendi");
+  updateTag("comments");
+  return { ok: true };
+}
+
 async function storeImage(
   formData: FormData,
   existing?: EditorContext,

@@ -395,6 +395,7 @@ export function AdminEditor({
                 labels={a as unknown as ReturnType<typeof useI18n>["t"]["home"]}
                 locale="tr"
                 isReplyingTo={null}
+                manageable={true}
               />
             )}
           </section>

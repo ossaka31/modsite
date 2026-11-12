@@ -133,6 +133,7 @@ grant select, insert on public.audit_events to authenticated;
 grant usage, select on sequence public.audit_events_id_seq to authenticated;
 grant select, insert on public.comments to anon, authenticated;
 grant delete on public.comments to authenticated;
+grant update on public.comments to authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.site_document enable row level security;
@@ -215,6 +216,12 @@ drop policy if exists comments_delete on public.comments;
 create policy comments_delete on public.comments
   for delete to authenticated
   using (public.is_admin());
+
+drop policy if exists comments_update on public.comments;
+create policy comments_update on public.comments
+  for update to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

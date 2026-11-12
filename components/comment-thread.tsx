@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { postComment, type CommentState, type CommentBadgeType } from "@/app/actions/comments";
 import { checkAdmin } from "@/app/actions/auth";
+import { editComment, deleteComment } from "@/app/actions/admin";
 import { contentLimits } from "@/lib/content/limits";
 import { useI18n } from "@/components/i18n-provider";
 import { Honeypot, TurnstileField } from "@/components/form-guards";
@@ -23,6 +24,24 @@ function WarningIcon(props: React.SVGProps<SVGSVGElement>) {
       <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function TrashIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
+function EditIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
 }
@@ -72,6 +91,7 @@ interface CommentThreadProps {
   depth?: number;
   isReplyingTo: string | null;
   onReplyClick?: (commentId: string | null) => void;
+  manageable?: boolean;
 }
 
 const BADGE_LABELS: Record<Exclude<CommentBadgeType, null>, { tr: string; en: string }> = {
@@ -129,6 +149,7 @@ export function CommentThread({
   depth = 0,
   isReplyingTo,
   onReplyClick,
+  manageable = false,
 }: CommentThreadProps) {
   if (comments.length === 0) return null;
 
@@ -143,6 +164,7 @@ export function CommentThread({
           depth={depth}
           isReplyingTo={isReplyingTo}
           onReplyClick={onReplyClick}
+          manageable={manageable}
         />
       ))}
     </ul>
@@ -156,21 +178,50 @@ interface CommentItemProps {
   depth: number;
   isReplyingTo: string | null;
   onReplyClick?: (commentId: string | null) => void;
+  manageable?: boolean;
 }
 
-function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClick }: CommentItemProps) {
+function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClick, manageable = false }: CommentItemProps) {
   const [showReplies, setShowReplies] = useState(true);
   const isReplying = isReplyingTo === comment.id;
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(comment.body);
 
   const authorName = comment.author || labels.commentAnon;
   const hasReplies = comment.replies.length > 0;
 
   const handleReplyClick = () => {
     onReplyClick?.(comment.id);
+    setEditing(false);
   };
 
   const handleCancelReply = () => {
     onReplyClick?.(null);
+  };
+
+  const handleEditClick = () => {
+    setEditBody(comment.body);
+    setEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setEditBody(comment.body);
+  };
+
+  const handleSaveEdit = async () => {
+    const trimmed = editBody.trim();
+    if (trimmed.length < 2) return;
+    setEditing(false);
+    const result = await editComment(comment.id, trimmed);
+    if (!result.ok) {
+      setEditing(true);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(locale === "tr" ? "Bu yorumu silmek istediğinizden emin misiniz?" : "Delete this comment?")) return;
+    await deleteComment(comment.id);
   };
 
   const indentSize = depth * 24;
@@ -182,7 +233,7 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
         {hasReplies && <span className="connector-branch" />}
       </div>
 
-      <article className="comment-card" id={`comment-${comment.id}`}>
+      <article className={`comment-card ${editing ? "is-editing" : ""}`} id={`comment-${comment.id}`}>
         <header className="comment-header">
           <div className="comment-author-row">
             <div className="comment-avatar" aria-hidden="true">
@@ -202,7 +253,28 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
           </time>
         </header>
 
-        <div className="comment-body">{comment.body}</div>
+        {editing ? (
+          <div className="comment-edit">
+            <textarea
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              rows={3}
+              className="field-textarea"
+              maxLength={contentLimits.commentBody}
+              autoFocus
+            />
+            <div className="comment-edit-actions">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={handleCancelEdit}>
+                {locale === "tr" ? "İptal" : "Cancel"}
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEdit}>
+                {locale === "tr" ? "Kaydet" : "Save"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="comment-body">{comment.body}</div>
+        )}
 
         <footer className="comment-footer">
           <button
@@ -211,6 +283,7 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
             onClick={handleReplyClick}
             aria-expanded={isReplying}
             aria-controls={`reply-form-${comment.id}`}
+            disabled={editing}
           >
             <svg className="reply-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M3 10h10a5 5 0 0 1 5 5v2" />
@@ -227,12 +300,36 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
               onClick={() => setShowReplies((prev) => !prev)}
               aria-expanded={showReplies}
               aria-controls={`replies-${comment.id}`}
+              disabled={editing}
             >
               <svg className="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
               <span>{showReplies ? labels.comments : labels.comments} ({comment.replies.length})</span>
             </button>
+          )}
+
+          {manageable && (
+            <div className="comment-admin-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm admin-edit-btn"
+                onClick={handleEditClick}
+                disabled={editing || isReplying}
+                aria-label={locale === "tr" ? "Düzenle" : "Edit"}
+              >
+                <EditIcon />
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm admin-delete-btn"
+                onClick={handleDelete}
+                disabled={editing || isReplying}
+                aria-label={locale === "tr" ? "Sil" : "Delete"}
+              >
+                <TrashIcon />
+              </button>
+            </div>
           )}
         </footer>
 
@@ -255,6 +352,7 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
               depth={depth + 1}
               isReplyingTo={isReplyingTo}
               onReplyClick={onReplyClick}
+              manageable={manageable}
             />
           </div>
         )}

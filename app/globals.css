@@ -726,9 +726,59 @@ h1, h2, h3, .lede, .byline, .slot strong, .slot p, .feature h3, .feature p,
   stroke-width: 3;
 }
 
-/* Reply form specific */
-.reply-form .badge-picker-compact {
-  margin-bottom: 14px;
+.comment-admin-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.admin-edit-btn,
+.admin-delete-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+
+.admin-edit-btn:hover {
+  color: var(--wood);
+  background: rgba(196, 137, 79, 0.1);
+}
+
+.admin-delete-btn:hover {
+  color: #ff6b5a;
+  background: rgba(255, 107, 90, 0.1);
+}
+
+.comment-edit {
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.comment-edit .field-textarea {
+  width: 100%;
+  min-height: 80px;
+  margin-bottom: 10px;
+}
+
+.comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Reduce opacity of reply/toggle buttons when editing */
+.comment-card.is-editing .reply-btn,
+.comment-card.is-editing .toggle-replies {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .reply-form .form-field {
@@ -1054,8 +1104,8 @@ h1, h2, h3, .lede, .byline, .slot strong, .slot p, .feature h3, .feature p,
   top: 0;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(180deg, var(--line), transparent 80%);
-  opacity: 0.4;
+  background: linear-gradient(180deg, var(--line), transparent 100%);
+  opacity: 0.35;
   border-radius: 1px;
 }
 
@@ -1089,8 +1139,8 @@ h1, h2, h3, .lede, .byline, .slot strong, .slot p, .feature h3, .feature p,
   top: 0;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(180deg, var(--line), transparent 80%);
-  opacity: 0.4;
+  background: linear-gradient(180deg, var(--line), transparent 100%);
+  opacity: 0.35;
   border-radius: 1px;
 }
 
@@ -1109,6 +1159,7 @@ h1, h2, h3, .lede, .byline, .slot strong, .slot p, .feature h3, .feature p,
   position: relative;
   padding: 20px;
   border: 1px solid var(--line);
+  border-left: 2px solid transparent;
   border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 35%),
@@ -1117,7 +1168,7 @@ h1, h2, h3, .lede, .byline, .slot strong, .slot p, .feature h3, .feature p,
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     inset 0 -2px 0 rgba(0, 0, 0, 0.3),
     0 4px 24px rgba(0, 0, 0, 0.2);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, border-left-color 0.2s ease;
 }
 
 .comment-card:hover {
@@ -1126,6 +1177,15 @@ h1, h2, h3, .lede, .byline, .slot strong, .slot p, .feature h3, .feature p,
     inset 0 -2px 0 rgba(0, 0, 0, 0.3),
     0 8px 32px rgba(0, 0, 0, 0.25);
   border-color: rgba(255, 220, 196, 0.2);
+}
+
+.comment-card.is-reply-target {
+  border-left-color: var(--ember-hot);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    0 0 0 3px rgba(226, 59, 50, 0.15);
 }
 
 .comment-header {

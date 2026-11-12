@@ -27,3 +27,16 @@ create policy comments_insert on public.comments
 -- Grant permissions (should already exist but safe to re-run)
 grant select, insert on public.comments to anon, authenticated;
 grant delete on public.comments to authenticated;
+grant update on public.comments to authenticated;
+
+-- Drop and recreate delete/update policies for admins
+drop policy if exists comments_delete on public.comments;
+create policy comments_delete on public.comments
+  for delete to authenticated
+  using (public.is_admin());
+
+drop policy if exists comments_update on public.comments;
+create policy comments_update on public.comments
+  for update to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
