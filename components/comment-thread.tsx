@@ -3,24 +3,26 @@
 import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { postComment, type CommentState, type CommentBadgeType } from "@/app/actions/comments";
-import { checkAdmin } from "@/app/actions/auth";
 import { editComment, deleteComment } from "@/app/actions/admin";
+import { checkAdmin } from "@/app/actions/auth";
 import { contentLimits } from "@/lib/content/limits";
 import { useI18n } from "@/components/i18n-provider";
 import { Honeypot, TurnstileField } from "@/components/form-guards";
 import type { CommentItem } from "@/lib/content/types";
 
-function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
+function CheckIcon(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  const size = props.size ?? 16;
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width={size} height={size} {...props}>
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
 
-function WarningIcon(props: React.SVGProps<SVGSVGElement>) {
+function WarningIcon(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  const size = props.size ?? 16;
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width={size} height={size} {...props}>
       <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -46,27 +48,40 @@ function EditIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function BadgeIconOsaka(props: React.SVGProps<SVGSVGElement>) {
+function ReplyIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M3 10h10a5 5 0 0 1 5 5v2" />
+      <path d="M3 10l5 5" />
+      <path d="M3 10l5-5" />
+    </svg>
+  );
+}
+
+function BadgeIconOsaka(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  const size = props.size ?? 16;
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width={size} height={size} {...props}>
       <path d="M8.5 14.5A2.5 2.5 0 0 1 11 12c0-1.38-.5-2.5-1-3.5a2.5 2.5 0 0 1 5 0c.5 1 .5 2.1 0 3.5a2.5 2.5 0 0 1-5 0c-.5 0-1-.5-1.5-1.5" />
       <path d="M12 17.5a2.5 2.5 0 0 1 0-5A4.5 4.5 0 0 0 7.5 15" />
     </svg>
   );
 }
 
-function BadgeIconAnon(props: React.SVGProps<SVGSVGElement>) {
+function BadgeIconAnon(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  const size = props.size ?? 16;
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width={size} height={size} {...props}>
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
     </svg>
   );
 }
 
-function BadgeIconRandom(props: React.SVGProps<SVGSVGElement>) {
+function BadgeIconRandom(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  const size = props.size ?? 16;
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width={size} height={size} {...props}>
       <path d="M21 12V7H5" />
       <path d="M21 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2" />
       <path d="M16 19h6" />
@@ -75,14 +90,22 @@ function BadgeIconRandom(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function BadgeIconCustom(props: React.SVGProps<SVGSVGElement>) {
+function BadgeIconCustom(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  const size = props.size ?? 16;
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width={size} height={size} {...props}>
       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
       <path d="M15 5 5 15" />
     </svg>
   );
 }
+
+const BADGE_OPTIONS = [
+  { value: "osaka", labelKey: "badgeOsaka", className: "badge-osaka" },
+  { value: "anonymous", labelKey: "badgeAnonymous", className: "badge-anon" },
+  { value: "random", labelKey: "badgeRandom", className: "badge-random" },
+  { value: "", labelKey: "commentName", className: "badge-custom" },
+] as const;
 
 interface CommentThreadProps {
   comments: CommentItem[];
@@ -224,7 +247,7 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
     await deleteComment(comment.id);
   };
 
-  const indentSize = depth * 24;
+  const indentSize = depth * 28;
 
   return (
     <li className="comment-item" style={{ "--indent": `${indentSize}px` } as React.CSSProperties} data-depth={depth}>
@@ -245,6 +268,30 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
                 <span className={`comment-badge ${getBadgeClass(comment.badgeType)}`}>
                   {getBadgeLabel(comment.badgeType, locale)}
                 </span>
+              )}
+            </div>
+            <div className="comment-actions">
+              {manageable && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm admin-edit-btn"
+                    onClick={handleEditClick}
+                    disabled={editing || isReplying}
+                    aria-label={locale === "tr" ? "Düzenle" : "Edit"}
+                  >
+                    <EditIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm admin-delete-btn"
+                    onClick={handleDelete}
+                    disabled={editing || isReplying}
+                    aria-label={locale === "tr" ? "Sil" : "Delete"}
+                  >
+                    <TrashIcon />
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -285,11 +332,7 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
             aria-controls={`reply-form-${comment.id}`}
             disabled={editing}
           >
-            <svg className="reply-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M3 10h10a5 5 0 0 1 5 5v2" />
-              <path d="M3 10l5 5" />
-              <path d="M3 10l5-5" />
-            </svg>
+            <ReplyIcon />
             <span>{labels.reply}</span>
           </button>
 
@@ -302,34 +345,8 @@ function CommentItem({ comment, labels, locale, depth, isReplyingTo, onReplyClic
               aria-controls={`replies-${comment.id}`}
               disabled={editing}
             >
-              <svg className="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
               <span>{showReplies ? labels.comments : labels.comments} ({comment.replies.length})</span>
             </button>
-          )}
-
-          {manageable && (
-            <div className="comment-admin-actions">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm admin-edit-btn"
-                onClick={handleEditClick}
-                disabled={editing || isReplying}
-                aria-label={locale === "tr" ? "Düzenle" : "Edit"}
-              >
-                <EditIcon />
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm admin-delete-btn"
-                onClick={handleDelete}
-                disabled={editing || isReplying}
-                aria-label={locale === "tr" ? "Sil" : "Delete"}
-              >
-                <TrashIcon />
-              </button>
-            </div>
           )}
         </footer>
 
@@ -390,6 +407,7 @@ function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
 
   const maxChars = contentLimits.commentBody;
   const isCustomName = badgeType === "";
+  const isValid = charCount >= 2 && charCount <= maxChars;
 
   return (
     <form id={id} className="reply-form" action={action}>
@@ -400,19 +418,15 @@ function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
 
       <div className="reply-form-header">
         <div className="replying-to">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M3 10h10a5 5 0 0 1 5 5v2" />
-            <path d="M3 10l5 5" />
-            <path d="M3 10l5-5" />
-          </svg>
+          <ReplyIcon className="replying-icon" />
           <span>{labels.replyingTo} <strong>{labels.commentAnon}</strong></span>
         </div>
         <button type="button" className="btn btn-ghost btn-sm cancel-reply" onClick={onCancel}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <span className="sr-only">{labels.cancelReply}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-          <span className="sr-only">{labels.cancelReply}</span>
         </button>
       </div>
 
@@ -420,54 +434,29 @@ function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
         <fieldset className="badge-picker badge-picker-compact">
           <legend>{c.selectBadge}</legend>
           <div className="badge-picker-grid" role="radiogroup" aria-label={c.selectBadge}>
-            <label
-              className={`badge-picker-option ${badgeType === "osaka" ? "selected" : ""} badge-osaka`}
-              role="radio"
-              aria-checked={badgeType === "osaka"}
-              tabIndex={0}
-              onClick={() => setBadgeType("osaka")}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType("osaka"); } }}
-            >
-              <BadgeIconOsaka className="badge-picker-icon" />
-              <span className="badge-picker-label">{c.badgeOsaka}</span>
-              {badgeType === "osaka" && <span className="badge-picker-check"><CheckIcon /></span>}
-            </label>
-            <label
-              className={`badge-picker-option ${badgeType === "anonymous" ? "selected" : ""} badge-anon`}
-              role="radio"
-              aria-checked={badgeType === "anonymous"}
-              tabIndex={0}
-              onClick={() => setBadgeType("anonymous")}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType("anonymous"); } }}
-            >
-              <BadgeIconAnon className="badge-picker-icon" />
-              <span className="badge-picker-label">{c.badgeAnonymous}</span>
-              {badgeType === "anonymous" && <span className="badge-picker-check"><CheckIcon /></span>}
-            </label>
-            <label
-              className={`badge-picker-option ${badgeType === "random" ? "selected" : ""} badge-random`}
-              role="radio"
-              aria-checked={badgeType === "random"}
-              tabIndex={0}
-              onClick={() => setBadgeType("random")}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType("random"); } }}
-            >
-              <BadgeIconRandom className="badge-picker-icon" />
-              <span className="badge-picker-label">{c.badgeRandom}</span>
-              {badgeType === "random" && <span className="badge-picker-check"><CheckIcon /></span>}
-            </label>
-            <label
-              className={`badge-picker-option ${badgeType === "" ? "selected" : ""} badge-custom`}
-              role="radio"
-              aria-checked={badgeType === ""}
-              tabIndex={0}
-              onClick={() => setBadgeType("")}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setBadgeType(""); } }}
-            >
-              <BadgeIconCustom className="badge-picker-icon" />
-              <span className="badge-picker-label">{c.commentName}</span>
-              {badgeType === "" && <span className="badge-picker-check"><CheckIcon /></span>}
-            </label>
+            {BADGE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`badge-picker-option ${badgeType === option.value ? "selected" : ""} ${option.className}`}
+                role="radio"
+                aria-checked={badgeType === option.value}
+                tabIndex={0}
+                onClick={() => setBadgeType(option.value as "osaka" | "anonymous" | "random" | "")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setBadgeType(option.value as "osaka" | "anonymous" | "random" | "");
+                  }
+                }}
+              >
+                {option.value === "osaka" && <BadgeIconOsaka className="badge-picker-icon" />}
+                {option.value === "anonymous" && <BadgeIconAnon className="badge-picker-icon" />}
+                {option.value === "random" && <BadgeIconRandom className="badge-picker-icon" />}
+                {option.value === "" && <BadgeIconCustom className="badge-picker-icon" />}
+                <span className="badge-picker-label">{c[option.labelKey as keyof typeof c]}</span>
+                {badgeType === option.value && <span className="badge-picker-check"><CheckIcon size={12} /></span>}
+              </label>
+            ))}
           </div>
         </fieldset>
       )}
@@ -501,29 +490,27 @@ function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
           maxLength={maxChars}
           placeholder={c.commentBodyPlaceholder}
           onChange={handleBodyChange}
-          className={`field-textarea ${charCount > maxChars ? "error" : ""} ${charCount < 2 && charCount > 0 ? "error" : ""}`}
+          className={`field-textarea ${!isValid && charCount > 0 ? "error" : ""}`}
           disabled={pending}
         />
         <div className="textarea-footer">
-          <span className="char-counter" data-current={charCount} data-max={maxChars}>
-            {charCount}/{maxChars}
-          </span>
-          <span className={`textarea-hint ${charCount >= 2 && charCount <= maxChars ? "success" : ""}`} aria-live="polite">
-            {charCount < 2 ? `${2 - charCount} ${locale === "tr" ? "karakter daha" : "more chars"}` : charCount >= 2 && charCount <= maxChars ? <CheckIcon /> : `${charCount - maxChars} ${locale === "tr" ? "karakter fazla" : "chars over"}`}
+          <span className="char-counter">{charCount}/{maxChars}</span>
+          <span className={`textarea-hint ${isValid ? "success" : ""}`} aria-live="polite">
+            {charCount < 2 ? `${2 - charCount} ${locale === "tr" ? "karakter daha" : "more chars"}` : charCount >= 2 && charCount <= maxChars ? <CheckIcon size={14} /> : `${charCount - maxChars} ${locale === "tr" ? "karakter fazla" : "chars over"}`}
           </span>
         </div>
       </div>
 
       {state.error && (
         <div className="form-message error" role="alert">
-          <WarningIcon className="message-icon" aria-hidden="true" />
+          <WarningIcon size={16} className="message-icon" aria-hidden="true" />
           {state.error}
         </div>
       )}
 
       {state.ok && (
         <div className="form-message success" role="status">
-          <CheckIcon className="message-icon" aria-hidden="true" />
+          <CheckIcon size={16} className="message-icon" aria-hidden="true" />
           {c.commentPosted}
         </div>
       )}
@@ -532,7 +519,7 @@ function ReplyForm({ id, parentId, labels, locale, onCancel }: ReplyFormProps) {
         <button
           type="submit"
           className={`btn btn-primary ${pending ? "loading" : ""}`}
-          disabled={pending || charCount < 2 || charCount > maxChars}
+          disabled={pending || !isValid}
         >
           {pending ? (
             <>

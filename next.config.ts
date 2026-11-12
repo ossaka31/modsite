@@ -55,7 +55,7 @@ const securityHeaders = [
   { key: "Origin-Agent-Cluster", value: "?1" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
   },
   ...(isDev
     ? []

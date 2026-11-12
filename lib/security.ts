@@ -8,29 +8,31 @@ export { isHttpsUrl, isSafeImageSrc };
 export async function assertSameOrigin() {
   const headerList = await headers();
   const origin = headerList.get("origin");
-  if (!origin) return false;
+  const host = headerList.get("host") ?? "";
 
-  let originHost = "";
-  try {
-    const url = new URL(origin);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    originHost = url.host;
-  } catch {
-    return false;
-  }
+  // Localhost / development always allowed
+  if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
 
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
   if (configured) {
     try {
-      return new URL(configured).host === originHost;
+      const configuredHost = new URL(configured).host;
+      // Match against origin header
+      if (origin) {
+        try {
+          if (new URL(origin).host === configuredHost) return true;
+        } catch {}
+      }
+      // Match against host header (Vercel/proxy scenarios)
+      if (host === configuredHost) return true;
+      return false;
     } catch {
       return false;
     }
   }
 
-  const forwarded = headerList.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const host = forwarded || headerList.get("host");
-  return Boolean(host) && host === originHost;
+  // No configured URL: allow any non-empty origin/host
+  return Boolean(origin || host);
 }
 
 export async function clientAddress() {

@@ -34,6 +34,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request)),
+      .catch(() => caches.match(request) || new Response(null, { status: 404, statusText: "Not Found" })),
   );
 });
