@@ -8,31 +8,42 @@ export { isHttpsUrl, isSafeImageSrc };
 export async function assertSameOrigin() {
   const headerList = await headers();
   const origin = headerList.get("origin");
-  const host = headerList.get("host") ?? "";
+  const hosts = [
+    headerList.get("x-forwarded-host")?.split(",")[0]?.trim(),
+    headerList.get("host")?.trim(),
+  ]
+    .filter((host): host is string => Boolean(host));
+  const normalizedHosts = hosts.map((host) => host.toLowerCase());
 
   // Localhost / development always allowed
-  if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
+  if (normalizedHosts.some((host) => host.startsWith("localhost") || host.startsWith("127.0.0.1"))) {
+    return true;
+  }
 
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  let originHost: string | null = null;
+  if (origin) {
+    try {
+      originHost = new URL(origin).host.toLowerCase();
+    } catch {
+      return false;
+    }
+
+    if (normalizedHosts.includes(originHost)) return true;
+  }
+
   if (configured) {
     try {
-      const configuredHost = new URL(configured).host;
-      // Match against origin header
-      if (origin) {
-        try {
-          if (new URL(origin).host === configuredHost) return true;
-        } catch {}
-      }
-      // Match against host header (Vercel/proxy scenarios)
-      if (host === configuredHost) return true;
-      return false;
+      const configuredHost = new URL(configured).host.toLowerCase();
+      return originHost
+        ? originHost === configuredHost
+        : normalizedHosts.includes(configuredHost);
     } catch {
       return false;
     }
   }
 
-  // No configured URL: allow any non-empty origin/host
-  return Boolean(origin || host);
+  return normalizedHosts.length > 0;
 }
 
 export async function clientAddress() {
